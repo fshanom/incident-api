@@ -59,7 +59,7 @@ def health_check() -> dict:
     """Return service health information and the total number of incidents."""
 
     return {
-        "status": "ok",
+        "status": "healthy",
         "service": "incident-management-api",
         "total_incidents": len(_incidents),
     }
