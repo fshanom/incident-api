@@ -19,7 +19,7 @@ resource "digitalocean_app" "incident_api" {
       name               = "api"
       instance_count     = 1
       instance_size_slug = "apps-s-1vcpu-0.5gb"
-      http_port          = 8000
+      http_port          = 8080
 
       image {
         registry_type = "DOCR"
