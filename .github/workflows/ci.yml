@@ -95,6 +95,12 @@ jobs:
         working-directory: terraform
         run: terraform init
 
+      - name: Terraform fmt e validate (validação sintática do IaC)
+        working-directory: terraform
+        run: |
+          terraform fmt -check -diff
+          terraform validate
+
       - name: Terraform apply (nova implantação do serviço)
         working-directory: terraform
         env:
