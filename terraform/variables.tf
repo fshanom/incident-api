@@ -1,17 +1,11 @@
-variable "aws_region" {
-  description = "Região AWS onde os recursos serão provisionados"
+variable "do_token" {
+  description = "Token de API da DigitalOcean (fornecido via variável de ambiente TF_VAR_do_token, nunca em texto plano no código)"
   type        = string
-  default     = "us-east-1"
+  sensitive   = true
 }
 
-variable "cpu" {
-  description = "Quantidade de CPU alocada para o serviço do App Runner"
+variable "image_tag" {
+  description = "Tag da imagem no DigitalOcean Container Registry a ser implantada (o pipeline de CI/CD usa o SHA do commit, garantindo que cada deploy seja rastreável até a mudança de código que o originou)"
   type        = string
-  default     = "0.25 vCPU"
-}
-
-variable "memory" {
-  description = "Quantidade de memória alocada para o serviço do App Runner"
-  type        = string
-  default     = "0.5 GB"
+  default     = "latest"
 }

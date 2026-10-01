@@ -4,3 +4,10 @@ __pycache__/
 .pytest_cache/
 .coverage
 coverage.xml
+pytest_output.txt
+docker_smoke_test.txt
+terraform_check.txt
+terraform/.terraform/
+terraform/*.tfplan
+terraform/tfplan.out
+terraform/terraform.tfstate.backup

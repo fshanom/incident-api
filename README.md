@@ -161,11 +161,21 @@ Em `terraform/`:
 - **Backend remoto S3** para o state (`tcc-tfstate-bucket`).
 - `aws_ecr_repository` com `scan_on_push = true` (prática de DevSecOps: scan
   automático de vulnerabilidades a cada push de imagem).
-- `aws_apprunner_service` com `auto_deployments_enabled = true` (simula um
-  fluxo GitOps: novas imagens publicadas geram deploy automático).
+- `aws_ecs_express_gateway_service` (**Amazon ECS Express Mode**, lançado
+  pela AWS em novembro/2025) executando a API em Fargate. Express Mode
+  provisiona automaticamente a infraestrutura de apoio (ALB com HTTPS,
+  target group, security groups, auto scaling, métricas no CloudWatch) a
+  partir de apenas três entradas: imagem do container, `execution_role` e
+  `infrastructure_role` (definidos em `iam.tf`).
+  > Nota: a versão anterior deste projeto usava AWS App Runner. A App
+  > Runner entrou em modo de manutenção em 30/04/2026 e parou de aceitar
+  > novos clientes, o que motivou a migração para ECS Express Mode — uma
+  > orquestração de contêineres mais alinhada, inclusive, ao tema do TCC.
 
 Variáveis configuráveis (`terraform/variables.tf`): `aws_region` (default
-`us-east-1`), `cpu` (default `0.25 vCPU`) e `memory` (default `0.5 GB`).
+`us-east-1`) e `image_tag` (tag da imagem no ECR a ser implantada; o
+pipeline de CI/CD usa o SHA do commit, tornando cada deploy rastreável até
+a mudança de código que o originou).
 
 ```bash
 cd terraform
@@ -173,6 +183,11 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+O pipeline de CI/CD (`.github/workflows/ci.yml`) executa esses mesmos
+comandos automaticamente a cada push na branch `main`, após build da
+imagem e push para o ECR, seguido de um smoke test contra a URL pública
+gerada pelo Express Mode.
 
 ## Contexto do TCC
 

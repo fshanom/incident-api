@@ -48,3 +48,84 @@ jobs:
           sleep 3
           curl --fail http://localhost:8000/incidents/health/check
           docker stop incident-api
+
+  deploy:
+    name: Deploy to DigitalOcean App Platform
+    needs: build
+    # Deploy automatizado só acontece em push direto na main (não em PR),
+    # o que preserva a rastreabilidade: cada deploy corresponde a exatamente
+    # um commit na main, base para o cálculo do lead time (commit -> serviço
+    # estável) e da frequência de deploy medidos como indicadores inspirados
+    # no DORA.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # O backend remoto originalmente planejado (S3/AWS) foi substituído
+      # pelo versionamento do próprio arquivo de estado no repositório —
+      # decisão de escopo documentada na Metodologia do TCC como limitação
+      # do estudo diante do cronograma do projeto, e não como prática
+      # recomendada para produção (o ideal seria um backend remoto
+      # dedicado, ex. DigitalOcean Spaces com protocolo compatível com S3).
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build, tag and push image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t registry.digitalocean.com/incident-api-tcc/incident-api:$IMAGE_TAG .
+          docker push registry.digitalocean.com/incident-api-tcc/incident-api:$IMAGE_TAG
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.6"
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform apply (nova implantação do serviço)
+        working-directory: terraform
+        env:
+          TF_VAR_do_token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: terraform apply -auto-approve -var="image_tag=${{ github.sha }}"
+
+      - name: Post-deploy smoke test
+        working-directory: terraform
+        run: |
+          URL=$(terraform output -raw app_url)
+          echo "Verificando $URL"
+          for i in $(seq 1 10); do
+            if curl --fail --silent "$URL/incidents/health/check"; then
+              echo "Serviço saudável em produção."
+              exit 0
+            fi
+            echo "Aguardando serviço ficar saudável... ($i/10)"
+            sleep 15
+          done
+          echo "Serviço não respondeu como esperado após o deploy." >&2
+          exit 1
+
+      - name: Persistir terraform.tfstate atualizado no repositório
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f terraform/terraform.tfstate
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: atualiza terraform.tfstate [skip ci]"
+            git push
+          else
+            echo "Nenhuma mudança no state a persistir."
+          fi
