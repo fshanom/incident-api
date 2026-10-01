@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.git/
+.github/
+terraform/
+*.md
+pytest_output.txt
+docker_smoke_test.txt
+terraform_check.txt
